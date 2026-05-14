@@ -34,7 +34,6 @@ Thumbs.db
 *.parquet
 *.json
 !gemini-extension.json
-!claude-extension.json
 !.cursor-plugin/plugin.json
 !.claude-plugin/marketplace.json
 !.claude-plugin/plugin.json
