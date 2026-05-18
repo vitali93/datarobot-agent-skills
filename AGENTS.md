@@ -38,6 +38,9 @@ Use this skill when setting up CI/CD pipelines for DataRobot application templat
 ### datarobot-external-agent-monitoring
 Use this skill when instrumenting external AI agents for DataRobot monitoring. Supports Google ADK, LangChain, LangGraph, CrewAI, LlamaIndex, PydanticAI, and generic Python agents. Creates shell deployments and configures OpenTelemetry to send traces, logs, and metrics to DataRobot.
 
+### datarobot-agent-assist
+Use this skill to build AI agents and deploy them to DataRobot. Supports building LangGraph, CrewAI, LlamaIndex, NAT and Base agents. Created agents can be bundled with MCP server, backend APIs & React frontend.
+
 ## How to Use
 
 When a user requests a DataRobot-related task:
