@@ -50,7 +50,7 @@ def save_framework(target_dir: Path, framework_value: str) -> None:
     print(f"\n✓ Saved '{framework_value}' to {answers_path}")
 
 
-def main() -> None:
+def main() -> int:
     parser = argparse.ArgumentParser(
         description="Save the agentic framework for a DataRobot agent project."
     )
@@ -71,10 +71,11 @@ def main() -> None:
     target_dir = Path(args.target_dir).resolve()
     if not target_dir.is_dir():
         print(f"Error: target directory does not exist: {target_dir}", file=sys.stderr)
-        sys.exit(1)
+        return 1
 
     save_framework(target_dir, args.framework)
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

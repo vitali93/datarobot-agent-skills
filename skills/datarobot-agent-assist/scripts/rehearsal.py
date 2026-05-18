@@ -22,6 +22,7 @@ import threading
 import time
 import urllib.request
 import urllib.error
+from collections.abc import Iterator
 from pathlib import Path
 
 from env_utils import ensure_env_file, read_env_variable
@@ -37,11 +38,11 @@ SIMULATION_MODEL = os.environ.get(
 # ── helpers ───────────────────────────────────────────────────────────────────
 
 
-def progress(msg):
+def progress(msg: str) -> None:
     print(f"[rehearsal] {msg}", file=sys.stderr, flush=True)
 
 
-def get_credentials():
+def get_credentials() -> tuple[str, str]:
     """Get DataRobot credentials from .env file or environment variables.
 
     If .env file doesn't exist, attempts to run 'dr dotenv setup'.
@@ -89,13 +90,13 @@ def get_credentials():
     return (api_token, endpoint)
 
 
-def strip_model_prefix(model):
+def strip_model_prefix(model: str) -> str:
     while model.startswith("datarobot/"):
         model = model[len("datarobot/") :]
     return model
 
 
-def strip_code_fence(text):
+def strip_code_fence(text: str) -> str:
     if not text.startswith("```"):
         return text
     lines = text.split("\n")
@@ -104,7 +105,7 @@ def strip_code_fence(text):
 
 
 @contextlib.contextmanager
-def capture_output(session_dir):
+def capture_output(session_dir: str) -> Iterator[str]:
     """Redirect stdout to a new temp file inside session_dir; yield the file path."""
     with tempfile.NamedTemporaryFile(
         mode="w", suffix=".txt", delete=False, dir=session_dir
@@ -123,28 +124,28 @@ def capture_output(session_dir):
 class TurnProgress:
     """Tracks per-turn LLM stats and emits progress lines to stderr."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.n_agent = 0
         self.n_sims = 0
         self.agent_elapsed = 0.0
         self.agent_in_tok = 0
         self.agent_out_tok = 0
 
-    def agent_done(self, elapsed, in_tok, out_tok):
+    def agent_done(self, elapsed: float, in_tok: int, out_tok: int) -> None:
         self.n_agent += 1
         self.agent_elapsed += elapsed
         self.agent_in_tok += in_tok
         self.agent_out_tok += out_tok
         progress(f"agent responded  {elapsed:.1f}s  {in_tok}→{out_tok} tok")
 
-    def tool_dispatched(self, fn, arg_keys):
+    def tool_dispatched(self, fn: str, arg_keys: list[str]) -> None:
         progress(f"tool: {fn}({', '.join(arg_keys)})")
 
-    def sim_done(self, fn, elapsed):
+    def sim_done(self, fn: str, elapsed: float) -> None:
         self.n_sims += 1
         progress(f"simulated {fn}  {elapsed:.1f}s")
 
-    def summary(self, wall_elapsed):
+    def summary(self, wall_elapsed: float) -> None:
         tok = (
             f"  {self.agent_in_tok}→{self.agent_out_tok} tok"
             if (self.agent_in_tok or self.agent_out_tok)
@@ -245,7 +246,14 @@ EXTRACT_TOOL = {
 }
 
 
-def llm_call(token, endpoint, model, messages, tools=None, tool_choice="auto"):
+def llm_call(
+    token: str,
+    endpoint: str,
+    model: str,
+    messages: list[dict],
+    tools: list[dict] | None = None,
+    tool_choice: str | dict = "auto",
+) -> dict:
     url = f"{endpoint.rstrip('/')}/genai/llmgw/chat/completions"
     payload = {
         "model": model,
@@ -273,7 +281,7 @@ def llm_call(token, endpoint, model, messages, tools=None, tool_choice="auto"):
         sys.exit(1)
 
 
-def build_tool_definitions(tools):
+def build_tool_definitions(tools: list[dict]) -> list[dict]:
     defs = []
     for tool in tools:
         props = {}
@@ -312,7 +320,13 @@ def build_tool_definitions(tools):
     return defs
 
 
-def simulate_tool_return(token, endpoint, tool_name, arguments, spec_tools):
+def simulate_tool_return(
+    token: str,
+    endpoint: str,
+    tool_name: str,
+    arguments: dict,
+    spec_tools: list[dict],
+) -> dict:
     spec_tool = next((t for t in spec_tools if t["function_name"] == tool_name), None)
     if spec_tool:
         out_schema = ", ".join(
@@ -353,7 +367,7 @@ def simulate_tool_return(token, endpoint, tool_name, arguments, spec_tools):
 # ── session management ────────────────────────────────────────────────────────
 
 
-def load_session(session_dir):
+def load_session(session_dir: str) -> tuple[dict, list[dict], str]:
     config_file = os.path.join(session_dir, "config.json")
     state_file = os.path.join(session_dir, "messages.json")
     if not os.path.exists(config_file) or not os.path.exists(state_file):
@@ -372,7 +386,7 @@ def load_session(session_dir):
 # ── commands ──────────────────────────────────────────────────────────────────
 
 
-def cmd_init(spec_path, session_dir):
+def cmd_init(spec_path: str, session_dir: str) -> None:
     if not os.path.exists(spec_path):
         print(f"Error: spec file not found: {spec_path}", file=sys.stderr)
         sys.exit(1)
@@ -454,7 +468,14 @@ def cmd_init(spec_path, session_dir):
     print("════════════════════════════════════════════")
 
 
-def run_tool_call(tc, token, endpoint, spec_tools, stats, lock):
+def run_tool_call(
+    tc: dict,
+    token: str,
+    endpoint: str,
+    spec_tools: list[dict],
+    stats: TurnProgress,
+    lock: threading.Lock,
+) -> dict:
     """Execute one tool call cycle: dispatch → simulate → return tool message."""
     fn = tc["function"]["name"]
     try:
@@ -482,7 +503,7 @@ def run_tool_call(tc, token, endpoint, spec_tools, stats, lock):
     return {"role": "tool", "tool_call_id": tc["id"], "content": json.dumps(simulated)}
 
 
-def cmd_turn(session_dir, message):
+def cmd_turn(session_dir: str, message: str) -> None:
     token, endpoint = get_credentials()
     config, messages, state_file = load_session(session_dir)
 
@@ -543,7 +564,7 @@ def cmd_turn(session_dir, message):
 # ── entry point ───────────────────────────────────────────────────────────────
 
 
-def main():
+def main() -> int:
     parser = argparse.ArgumentParser(description="DataRobot Dress Rehearsal")
     parser.add_argument("--init", action="store_true")
     parser.add_argument("--spec", default="agent_spec.md")
@@ -561,15 +582,17 @@ def main():
     elif args.message:
         if not args.session:
             print("Error: --session DIR is required", file=sys.stderr)
-            sys.exit(1)
+            return 1
         with capture_output(args.session) as output_path:
             cmd_turn(args.session, args.message)
         print(f"output={output_path}")
 
     else:
         parser.print_help()
-        sys.exit(1)
+        return 1
+
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

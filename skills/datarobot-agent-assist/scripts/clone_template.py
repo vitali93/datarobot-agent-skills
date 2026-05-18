@@ -22,7 +22,7 @@ from typing import Optional
 
 REPO_URL = "https://github.com/datarobot-community/datarobot-agent-application.git"
 BRANCH = None
-TAG = "11.9.1"
+TAG = "11.9.2"
 
 
 def cleanup_git_dir(target_dir: Path) -> None:
@@ -63,10 +63,7 @@ def run_git_command(
 
         output = result.stdout + result.stderr
 
-        if result.returncode != 0:
-            return False, output
-
-        return True, output
+        return bool(not result.returncode), output
 
     except subprocess.TimeoutExpired:
         return False, f"Command timed out after {timeout} seconds"
@@ -88,7 +85,7 @@ def check_guardrails(target_dir: Path) -> tuple[bool, Optional[str]]:
     if git_dir.exists():
         return (
             False,
-            f"Git repository already initialized in {target_dir}\n  Found: {git_dir}\n  Aborting to prevent overwriting existing repository",
+            f"Git repository already initialized in {target_dir}\n\tFound: {git_dir}\n\tAborting to prevent overwriting existing repository",
         )
 
     # Check for AGENTS.md
@@ -96,7 +93,7 @@ def check_guardrails(target_dir: Path) -> tuple[bool, Optional[str]]:
     if agents_file.exists():
         return (
             False,
-            f"AGENTS.md file already exists in {target_dir}\n  Aborting to prevent overwriting existing configuration",
+            f"AGENTS.md file already exists in {target_dir}\n\tAborting to prevent overwriting existing configuration",
         )
 
     print("✓ Guardrail checks passed")

@@ -17,13 +17,21 @@ import json
 import os
 import sys
 from pathlib import Path
+from typing import TypedDict
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 from env_utils import ensure_env_file, read_env_variable
 
 
-def fetch_llm_models(endpoint: str, api_token: str) -> list[dict]:
+class LLMModel(TypedDict):
+    name: str
+    description: str
+    provider: str
+    context_size: int
+
+
+def fetch_llm_models(endpoint: str, api_token: str) -> list[LLMModel]:
     """Fetch active LLM models from DataRobot Gateway.
 
     Args:
@@ -31,7 +39,7 @@ def fetch_llm_models(endpoint: str, api_token: str) -> list[dict]:
         api_token: DataRobot API token for authentication
 
     Returns:
-        List of active model dictionaries with name, description, provider, and context_size
+        List of active LLMModel dictionaries with name, description, provider, and context_size
 
     Raises:
         RuntimeError: If the API request fails
@@ -55,14 +63,14 @@ def fetch_llm_models(endpoint: str, api_token: str) -> list[dict]:
         else:
             raise RuntimeError(f"Unexpected response format: {type(data)}")
 
-        # Client-side filtering for active models (server-side activeOnly param is broken)
+        # Client-side filtering for active models
         active_models = [m for m in models_list if m.get("isActive", False)]
 
         if not active_models:
             raise RuntimeError("No active models found in catalog")
 
         # Extract key information
-        result = []
+        result: list[LLMModel] = []
         for m in active_models:
             model_name = m.get("model", "")
             # Ensure model name has datarobot/ prefix
@@ -86,7 +94,7 @@ def fetch_llm_models(endpoint: str, api_token: str) -> list[dict]:
         raise RuntimeError(f"Failed to parse model catalog response: {e}") from e
 
 
-def format_as_table(models: list[dict]) -> str:
+def format_as_table(models: list[LLMModel]) -> str:
     """Format models as a readable table.
 
     Args:
@@ -99,12 +107,12 @@ def format_as_table(models: list[dict]) -> str:
         return "No models available"
 
     # Calculate column widths
-    name_width = max(len(m["name"]) for m in models)
-    name_width = max(name_width, len("Model Name"))
-    provider_width = max(len(m["provider"]) for m in models)
-    provider_width = max(provider_width, len("Provider"))
-    context_width = max(len(str(m["context_size"])) for m in models)
-    context_width = max(context_width, len("Context Size"))
+    models_name_width = max(len(m["name"]) for m in models)
+    name_width = max(models_name_width, len("Model Name"))
+    models_provider_width = max(len(m["provider"]) for m in models)
+    provider_width = max(models_provider_width, len("Provider"))
+    models_context_width = max(len(str(m["context_size"])) for m in models)
+    context_width = max(models_context_width, len("Context Size"))
 
     # Build table
     lines = []
@@ -129,7 +137,7 @@ def format_as_table(models: list[dict]) -> str:
     return "\n".join(lines)
 
 
-def main():
+def main() -> int:
     """Main entry point."""
     parser = argparse.ArgumentParser(
         description="List available LLM models from DataRobot LLM Gateway"
@@ -179,17 +187,17 @@ def main():
         print(
             "Error: DATAROBOT_API_TOKEN environment variable not set", file=sys.stderr
         )
-        sys.exit(1)
+        return 1
 
     if not endpoint:
         print("Error: DATAROBOT_ENDPOINT environment variable not set", file=sys.stderr)
-        sys.exit(1)
+        return 1
 
     if not api_token:
         print(
             "Error: DATAROBOT_API_TOKEN environment variable not set", file=sys.stderr
         )
-        sys.exit(1)
+        return 1
 
     try:
         models = fetch_llm_models(endpoint, api_token)
@@ -205,11 +213,13 @@ def main():
 
     except RuntimeError as e:
         print(f"Error: {e}", file=sys.stderr)
-        sys.exit(1)
+        return 1
     except Exception as e:
         print(f"Unexpected error: {e}", file=sys.stderr)
-        sys.exit(1)
+        return 1
+
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

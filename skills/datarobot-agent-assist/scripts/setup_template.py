@@ -14,6 +14,7 @@ The script generates cryptographically secure random secrets for session
 management and Pulumi configuration encryption.
 """
 
+import os
 import sys
 import argparse
 import subprocess
@@ -72,7 +73,7 @@ def create_env_file(target_dir: Path, llm_default_model: str) -> Tuple[bool, str
 
 
 def initialize_pulumi(
-    target_dir: Path, pulumi_passphrase: str = ""
+    target_dir: Path, pulumi_passphrase: str = "", timeout: int = 300
 ) -> Tuple[bool, str]:
     """
     Initialize Pulumi stack with a passphrase from .env or generated.
@@ -113,9 +114,6 @@ def initialize_pulumi(
     print(f"  Stack name: {stack_name}")
     print()
 
-    # Set environment variables
-    import os
-
     env = os.environ.copy()
     env["DATAROBOT_CLI_NON_INTERACTIVE"] = "True"
     env["PULUMI_CONFIG_PASSPHRASE"] = passphrase
@@ -127,7 +125,7 @@ def initialize_pulumi(
             shell=True,
             capture_output=True,
             text=True,
-            timeout=300,
+            timeout=timeout,
             check=False,
             env=env,
         )
@@ -151,7 +149,7 @@ def initialize_pulumi(
         return True, output
 
     except subprocess.TimeoutExpired:
-        error_msg = "Pulumi initialization timed out after 300 seconds"
+        error_msg = f"Pulumi initialization timed out after {timeout} seconds"
         print(f"Error: {error_msg}")
         return False, error_msg
     except Exception as e:
@@ -175,9 +173,6 @@ def run_command(command: str, target_dir: Path, timeout: int = 300) -> Tuple[boo
     print(f"\nExecuting command in {target_dir}:")
     print(f"  {command}")
     print()
-
-    # Set environment variables
-    import os
 
     env = os.environ.copy()
     env["DATAROBOT_CLI_NON_INTERACTIVE"] = "True"
