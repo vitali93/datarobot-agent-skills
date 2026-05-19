@@ -166,6 +166,7 @@ Available skills (in datarobot-* folders):
 - datarobot-data-preparation: Data upload and validation
 - datarobot-app-framework-cicd: CI/CD pipelines for DataRobot application templates
 - datarobot-external-agent-monitoring: External agent OTel instrumentation for DataRobot monitoring
+- datarobot-agent-assist: Building and deploying agents
 
 When asked to use a DataRobot skill, read the corresponding SKILL.md file for detailed guidance.
 ```
@@ -225,6 +226,7 @@ This repository contains skills for common DataRobot workflows. You can also con
 | `skills/datarobot-data-preparation/` | Utilities for data upload, dataset management, and data validation. | [SKILL.md](skills/datarobot-data-preparation/SKILL.md) |
 | `skills/datarobot-app-framework-cicd/` | Set up CI/CD pipelines for DataRobot application templates with GitLab and GitHub Actions. | [SKILL.md](skills/datarobot-app-framework-cicd/SKILL.md) |
 | `skills/datarobot-external-agent-monitoring/` | Instrument any external AI agent with OpenTelemetry to send traces, logs, and metrics to DataRobot for monitoring and observability. Supports Google ADK, LangChain, LangGraph, CrewAI, LlamaIndex, PydanticAI, and generic Python agents. | [SKILL.md](skills/datarobot-external-agent-monitoring/SKILL.md) |
+| `skills/datarobot-agent-assist/` | Build AI agents and deploy them to DataRobot. Supports building LangGraph, CrewAI, LlamaIndex, NAT and Base agents. Created agents can be bundled with MCP server, backend APIs & React frontend. | [SKILL.md](skills/datarobot-agent-assist/SKILL.md) |
 
 ## Using skills in your coding agent
 
@@ -246,15 +248,14 @@ Some skills include helper scripts that an agent can run directly:
 - **datarobot-model-training**: `create_project.py`, `start_training.py`, `list_models.py`
 - **datarobot-data-preparation**: `upload_dataset.py`
 - **datarobot-external-agent-monitoring**: `create_shell_deployment.py`, `verify_otel_connection.py`
+- **datarobot-agent-assist**: `select_framework.py`, `clone_template.py`, `setup_template.py`, `list_llm_models.py`, `rehearsal.py`, `env_utils.py`
 
 These scripts are located in each skill's `scripts/` directory and can be executed directly or used as references when writing code.
 
 ## Additional documentation
 
-- [Usage Guide](docs/USAGE_GUIDE.md) - A complete guide to using DataRobot skills
-- [LangGraph Integration](docs/LANGGRAPH_INTEGRATION.md) - How to use skills with LangGraph agents
-- [Agent Framework Integration](docs/AGENT_FRAMEWORK_INTEGRATION.md) - Patterns for LangGraph, PydanticAI, and other programmatic agent frameworks
-- [Development and customization](docs/DEVELOPMENT_AND_CUSTOMIZATION.md) - How to customize skills, run validation, understand DataRobot skill execution, and review runtime prerequisites
+- [Agent framework integration](docs/AGENT_FRAMEWORK_INTEGRATION.md)&mdash;how to load and inject skills when building agents with LangGraph, PydanticAI, CrewAI, LlamaIndex, and similar frameworks.
+- [Contributing](CONTRIBUTING.md)&mdash;how to create skills, naming conventions, validation, and CI.
 
 ## Additional references
 

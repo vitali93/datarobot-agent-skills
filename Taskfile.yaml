@@ -9,10 +9,10 @@ tasks:
       - echo "Git hooks installed. Pre-commit will evaluate skills touched by each commit and update tests/e2e/skill_hashes.json
         automatically."
 
-  validate:
+  test:integration:
     desc: Validate all DataRobot skills (naming, structure, frontmatter)
     cmds:
-      - uv run bin/validate_skills.py
+      - uv run --group integration pytest tests/integration/ -v --tb=short
 
   ruff:check:
     desc: Run ruff linter on all Python scripts
@@ -44,14 +44,33 @@ tasks:
     cmds:
       - yamlfmt -lint .
 
+  mypy:
+    desc: Run mypy type checker on Python scripts (override dir with DIR=<path>)
+    vars:
+      DIR: '{{.DIR | default "skills/"}}'
+    cmds:
+      - uv run --group dev mypy {{.DIR}}
+
+  license:check:
+    desc: Check copyright headers on all code files
+    cmds:
+      - license-eye header check
+
+  license:fix:
+    desc: Add missing copyright headers to code files
+    cmds:
+      - license-eye header fix
+
   lint:
-    desc: Run all linting checks (validate skills + ruff + shellcheck + yamlfmt)
+    desc: Run all linting checks (validate skills + ruff + mypy + shellcheck + yamlfmt + license)
     deps:
-      - validate
+      - test:integration
       - ruff:check
       - ruff:format:check
+      - mypy
       - shellcheck
       - yamlfmt:check
+      - license:check
 
   format:
     desc: Format all Python scripts and YAML files
@@ -70,6 +89,6 @@ tasks:
       - SKILLS_E2E_FORCE_ALL=1 uv run --group e2e pytest tests/e2e/ -v --tb=short
 
   default:
-    desc: Run validation and linting
+    desc: List all available tasks
     cmds:
-      - task: lint
+      - task --list

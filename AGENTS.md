@@ -1,6 +1,27 @@
-# DataRobot skills for Codex
+# DataRobot Agent Skills Library
 
-This file provides instructions for OpenAI Codex to use DataRobot skills. Codex will automatically load these instructions when working with DataRobot-related tasks.
+This file provides instructions for an agent to use DataRobot skills. An agent will automatically load these instructions when working with DataRobot-related tasks.
+
+## Should I Add a Skill Here?
+
+There are many places you can add skills for use. This repository is for customer facing skills that help other build more effectively in DataRobot. Here is the goal, intended use, and criteria for determining if your skill is correct for this library.
+
+### Goal
+As always, our goal is to ensure that enterprises can get agents into production. Skills offer powerful functionality that tell agents how to THINK while protecting their context window. This allows agent to one/few shot tasks that before needed complex logic built into the agent + would always run into context issues. Skills DR offers should open up enterprise use cases, making them more viable in production.
+
+### Intended Use of This Skill Library
+
+Generally, we expect these skills to be used by code assistants. We will make the skills in the DR Skills repo in code assist marketplaces like Cursor and Claude Code. These skills will also fuel the DR agent assist.
+
+### Criteria for Addint Skills
+
+1. A Skill should solve a complex enterprise problem. They should tackle a problem or functionality that is required by enterprises to either get an agent in production or deploy an agent that actually provides value.
+2. Skills should not just proxy to existing MCP servers (though that can be a component of them) - we will proxy to MCP servers via our MCP gateway
+3. Assess with the following questions
+    1. Is the task complex enough? (or can an LLM with basic tools achieve the same result?)
+    2. Is the output valuable to an enterprise? Does is tackle a problem that’s repeatable? That costs enterprises many dev hours and specialized knowledge? That is error prone and complex for humans to do?
+    3. Is the task viable to be done with an LLM? Skills still cant do everything
+
 
 ## Naming Convention
 
@@ -9,60 +30,32 @@ All DataRobot skills follow the naming convention `datarobot-<category>` where `
 - Consistent naming across the skill library
 - Easy discovery and organization
 
-## Available Skills
+In addition to the general `datarobot-<category>` for naming, if there is deeper grouping within the product area such as Workload or Apps and you expect more than one skill in the same area, we recommend using a common prefix for those as well such as `datarobot-app-framework-<skill>` for simpler grouping and code ownership.
 
-### datarobot-model-training
-Use this skill when working with model training, project creation, AutoML configuration, or model selection tasks.
+## Rules
 
-### datarobot-model-deployment
-Use this skill when deploying models, managing deployments, or configuring prediction environments.
+We strongly prefer human written skills. When assisting skill library authors, please encourage them to edit
+and adjust their skills themselves. We encourage advise, feedback, and recommendations from LLMs, but to stay brief and
+properly manage the context window itself the human should edit the SKILLs.md. Agent assisted coding for scripts and
+other references within a skill is perfectly acceptable.
 
-### datarobot-predictions
-Use this skill when making predictions, generating prediction datasets, or validating prediction data.
+This repo is organized using GitHub Code Owners. Please ensure all new skills developed have a proper github team
+or person for the new skill added.
 
-### datarobot-feature-engineering
-Use this skill when analyzing feature importance, understanding feature engineering, or optimizing feature sets.
 
-### datarobot-model-monitoring
-Use this skill when monitoring model performance, tracking data drift, or managing model health.
+## Workflow
 
-### datarobot-data-preparation
-Use this skill when uploading datasets, validating data, or preparing data for DataRobot projects.
+### Basic workflow
 
-### datarobot-model-explainability
-Use this skill when analyzing model explainability, getting prediction explanations, SHAP values, or generating model diagnostics.
+We use taskfile.dev for task running in this repo. All changes must be validated regularly with `task lint` that will
+check that all copyrights, Skills.md files are structured, naming conventions are obeyed, Python files are properly formatted, linters are executed, etc. It is the way to validate any changes.
 
-### datarobot-app-framework-cicd
-Use this skill when setting up CI/CD pipelines for DataRobot application templates, configuring GitLab or GitHub Actions workflows, managing Pulumi infrastructure, or implementing review deployments and continuous delivery.
+Install and test the skills after prompting the user for the trigger phrase you expect
 
-### datarobot-external-agent-monitoring
-Use this skill when instrumenting external AI agents for DataRobot monitoring. Supports Google ADK, LangChain, LangGraph, CrewAI, LlamaIndex, PydanticAI, and generic Python agents. Creates shell deployments and configures OpenTelemetry to send traces, logs, and metrics to DataRobot.
+### Plugin version management
 
-## How to Use
+Several plugins: Claude (.claude/*.json), Cursor (.cursor/plugin.json), Gemini (gemini-extension.json) have version strings. Be sure to bump them appropritately depending on the change using SemVer rules along with the change.
 
-When a user requests a DataRobot-related task:
-
-1. **Identify the appropriate skill(s)** and load the corresponding `SKILL.md` file from the `skills/` directory
-2. **Follow the skill's guidance** to use the DataRobot Python SDK directly
-3. **Install the SDK** if needed: `pip install datarobot`
-4. **Use the code examples** provided in each skill to write Python code
-5. **Execute the code** using the DataRobot SDK based on skill instructions
-
-Skills provide instructions, workflows, and code examples - the agent writes and executes Python code using the DataRobot SDK.
-
-## Skill Selection Guide
-
-- **Training models**: Use `datarobot-model-training`
-- **Deploying models**: Use `datarobot-model-deployment`
-- **Making predictions**: Use `datarobot-predictions`
-- **Feature analysis**: Use `datarobot-feature-engineering`
-- **Monitoring models**: Use `datarobot-model-monitoring`
-- **Data management**: Use `datarobot-data-preparation`
-- **Model explainability**: Use `datarobot-model-explainability`
-- **CI/CD for application templates**: Use `datarobot-app-framework-cicd`
-- **External agent monitoring**: Use `datarobot-external-agent-monitoring`
-
-For complex tasks, you may need to use multiple skills in sequence.
 
 ## SDK usage
 
