@@ -9,6 +9,11 @@ dependencies = []
 dev = [
     "mypy>=1.10",
 ]
+integration = [
+    "datarobot-genai",
+    "python-frontmatter>=1.1",
+    "pytest>=8.0",
+]
 e2e = [
     "datarobot-agent-tester @ git+https://github.com/datarobot/datarobot-agent-tester@main",
     "python-dotenv>=1.2.2",
@@ -17,7 +22,6 @@ e2e = [
 ]
 
 [tool.pytest.ini_options]
-asyncio_mode = "auto"
 
 [tool.mypy]
 # The strategy moving forward is to delete these one by one and get the errors back to zero.

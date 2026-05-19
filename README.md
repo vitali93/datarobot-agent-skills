@@ -254,10 +254,8 @@ These scripts are located in each skill's `scripts/` directory and can be execut
 
 ## Additional documentation
 
-- [Usage Guide](docs/USAGE_GUIDE.md) - A complete guide to using DataRobot skills
-- [LangGraph Integration](docs/LANGGRAPH_INTEGRATION.md) - How to use skills with LangGraph agents
-- [Agent Framework Integration](docs/AGENT_FRAMEWORK_INTEGRATION.md) - Patterns for LangGraph, PydanticAI, and other programmatic agent frameworks
-- [Development and customization](docs/DEVELOPMENT_AND_CUSTOMIZATION.md) - How to customize skills, run validation, understand DataRobot skill execution, and review runtime prerequisites
+- [Agent framework integration](docs/AGENT_FRAMEWORK_INTEGRATION.md)&mdash;how to load and inject skills when building agents with LangGraph, PydanticAI, CrewAI, LlamaIndex, and similar frameworks.
+- [Contributing](CONTRIBUTING.md)&mdash;how to create skills, naming conventions, validation, and CI.
 
 ## Additional references
 

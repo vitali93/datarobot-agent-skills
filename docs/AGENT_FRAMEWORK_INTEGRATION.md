@@ -1,7 +1,269 @@
-# Agent Framework Integration (LangGraph, PydanticAI, etc.)
+# Using skills with programmatic agent frameworks
 
-This repo's "skills" are **instruction bundles** (`datarobot-*/SKILL.md`) plus optional helper scripts (`datarobot-*/scripts/`).
-Some agent runtimes (Claude Code, Codex, Gemini CLI) can auto-load these; **most programmatic agent frameworks (LangGraph, PydanticAI, LangChain, etc.) require you to load them yourself**.
+DataRobot skills work automatically with coding agents like Claude Code, Cursor, and Codex. When you build your own agent using a programmatic framework — LangGraph, PydanticAI, CrewAI, LlamaIndex, and similar — you load and inject skills yourself.
+
+## The core pattern
+
+Every framework integration follows the same four steps:
+
+1. **Load**&mdash;read the relevant `SKILL.md` text (and optionally any scripts in that folder).
+2. **Route**&mdash;match the user's request to one or more skills (keyword routing or an LLM router).
+3. **Inject**&mdash;place the skill text into the agent's system prompt or instructions field.
+4. **Execute**&mdash;run helper scripts directly, or have the LLM generate DataRobot SDK code.
+
+### Skill loader
+
+```python
+from pathlib import Path
+import frontmatter
+
+def load_skill(skill_dir: str) -> dict:
+    """Return name, description, and content from datarobot-*/SKILL.md."""
+    skill_path = Path(skill_dir) / "SKILL.md"
+    post = frontmatter.load(skill_path)
+    return {
+        "name": post.metadata.get("name", skill_dir),
+        "description": post.metadata.get("description", ""),
+        "content": post.content,
+    }
+```
+
+### Running helper scripts as tools
+
+```python
+import json
+import os
+import subprocess
+
+def run_skill_script(script_path: str, *args: str) -> dict:
+    """Run a helper script and parse JSON output."""
+    proc = subprocess.run(
+        ["python3", script_path, *args],
+        capture_output=True,
+        text=True,
+        env=os.environ,  # Expects DATAROBOT_API_TOKEN and DATAROBOT_ENDPOINT.
+    )
+    if proc.returncode != 0:
+        return {"error": proc.stderr.strip()}
+    try:
+        return json.loads(proc.stdout)
+    except ValueError:
+        return {"output": proc.stdout}
+```
+
+## LangGraph
+
+LangGraph does not auto-load `SKILL.md`. Your router and planner nodes must read skills explicitly.
+
+The recommended pattern:
+
+- **Router node**&mdash;chooses a skill based on user intent.
+- **Planner node**&mdash;injects skill content into the system prompt and calls the LLM.
+- **Executor node**&mdash;runs helper scripts or SDK-generated code.
+
+```python
+# Pattern sketch — adapt imports and APIs to your LangGraph version.
+import json
+from typing import List, TypedDict
+
+from langchain_core.messages import BaseMessage, SystemMessage
+
+
+def load_skill_catalog() -> list[dict]:
+    """Build a catalog (name + description only) for the router LLM."""
+    # Load from all datarobot-*/SKILL.md using load_skill().
+    # Return list of: {"name": "...", "description": "...", "dir": "..."}
+    raise NotImplementedError
+
+
+class State(TypedDict):
+    messages: List[BaseMessage]
+    skill_name: str
+    skill_text: str
+
+
+def route_skill_node(state: State, router_llm) -> State:
+    user_text = state["messages"][-1].content
+    catalog = load_skill_catalog()
+
+    router_prompt = f"""Choose the single best DataRobot skill for this request.
+
+User request: {user_text}
+Skills: {json.dumps(catalog, indent=2)}
+
+Return JSON only: {{"skill_name": "<name>"}}"""
+
+    resp = router_llm.invoke([SystemMessage(content=router_prompt)])
+    choice = json.loads(resp.content)
+    chosen = choice.get("skill_name", "datarobot-predictions")
+
+    by_name = {s["name"]: s for s in catalog}
+    skill_dir = by_name.get(chosen, {"dir": "datarobot-predictions"})["dir"]
+    skill = load_skill(skill_dir)
+    state["skill_name"] = skill["name"]
+    state["skill_text"] = skill["content"]
+    return state
+
+
+def planner_node(state: State) -> State:
+    system = SystemMessage(content=f"Use this skill guidance:\n\n{state['skill_text']}")
+    state["messages"] = [system] + state["messages"]
+    # Call your model and tools here.
+    return state
+```
+
+**Note:** LangGraph and LangChain packages evolve quickly. If you see `ImportError` for `langchain_core.messages`, upgrade `langgraph`, `langchain-core`, and your model provider packages together.
+
+## PydanticAI
+
+PydanticAI exposes a system prompt field and a tool registry. Load skill content into the system prompt and register helper scripts as tools.
+
+```python
+# Pattern sketch — adapt to your PydanticAI version.
+skill = load_skill("datarobot-predictions")
+
+instructions = f"""You are a DataRobot assistant.
+Follow this skill guidance:
+
+{skill['content']}
+"""
+
+
+def get_deployment_features(deployment_id: str) -> dict:
+    return run_skill_script(
+        "datarobot-predictions/scripts/get_deployment_features.py",
+        deployment_id,
+    )
+
+
+def score_rows(deployment_id: str, data_json: str) -> dict:
+    return run_skill_script(
+        "datarobot-predictions/scripts/make_prediction.py",
+        deployment_id,
+        data_json,
+    )
+
+
+# Register get_deployment_features and score_rows as tools in your PydanticAI Agent,
+# and set instructions as the system prompt.
+```
+
+## CrewAI
+
+CrewAI organizes work into Agents, Tasks, and Crews. Load skill content into the agent's `backstory` (for persistent role context) or into a `Task.description` (for task-specific guidance).
+
+```python
+from crewai import Agent, Crew, Task
+
+skill = load_skill("datarobot-predictions")
+
+datarobot_agent = Agent(
+    role="DataRobot predictions specialist",
+    goal="Generate accurate predictions using the DataRobot SDK.",
+    backstory=f"""You are an expert at DataRobot workflows.
+Follow this skill guidance:
+
+{skill['content']}
+""",
+    verbose=True,
+)
+
+prediction_task = Task(
+    description="Generate a prediction dataset template for deployment {deployment_id} and score it.",
+    expected_output="A JSON object with prediction results.",
+    agent=datarobot_agent,
+)
+
+crew = Crew(agents=[datarobot_agent], tasks=[prediction_task])
+result = crew.kickoff(inputs={"deployment_id": "abc123"})
+```
+
+To support multiple skills, create one agent per skill domain and route tasks between them:
+
+```python
+from crewai import Agent, Crew, Task
+
+skills = {
+    "predictions": load_skill("datarobot-predictions"),
+    "monitoring": load_skill("datarobot-model-monitoring"),
+}
+
+agents = {
+    name: Agent(
+        role=f"DataRobot {name} specialist",
+        goal=f"Complete {name} tasks using DataRobot.",
+        backstory=skill["content"],
+    )
+    for name, skill in skills.items()
+}
+```
+
+## LlamaIndex
+
+LlamaIndex agents use tools and a system prompt. Load skill content into the system prompt and wrap helper scripts as `FunctionTool` instances.
+
+```python
+from llama_index.core.agent import ReActAgent
+from llama_index.core.tools import FunctionTool
+from llama_index.llms.openai import OpenAI
+
+skill = load_skill("datarobot-predictions")
+
+
+def get_features(deployment_id: str) -> str:
+    """Get the feature schema for a DataRobot deployment."""
+    result = run_skill_script(
+        "datarobot-predictions/scripts/get_deployment_features.py",
+        deployment_id,
+    )
+    return str(result)
+
+
+def make_prediction(deployment_id: str, data_json: str) -> str:
+    """Score rows against a DataRobot deployment."""
+    result = run_skill_script(
+        "datarobot-predictions/scripts/make_prediction.py",
+        deployment_id,
+        data_json,
+    )
+    return str(result)
+
+
+tools = [
+    FunctionTool.from_defaults(fn=get_features),
+    FunctionTool.from_defaults(fn=make_prediction),
+]
+
+llm = OpenAI(model="gpt-4o")
+agent = ReActAgent.from_tools(
+    tools,
+    llm=llm,
+    verbose=True,
+    system_prompt=f"You are a DataRobot assistant. Follow this skill guidance:\n\n{skill['content']}",
+)
+
+response = agent.chat("Generate a prediction template for deployment abc123.")
+```
+
+To handle multiple skills dynamically, select the skill before constructing the agent:
+
+```python
+def build_agent(user_query: str) -> ReActAgent:
+    """Build a LlamaIndex agent loaded with the right skill."""
+    skill_name = route_query(user_query)  # Keyword or LLM routing.
+    skill = load_skill(skill_name)
+    # Rebuild the agent with the updated system prompt.
+    ...
+```
+
+## Best practices
+
+- **Load skills at startup**&mdash;parse `SKILL.md` files once and cache the result.
+- **Route before loading**&mdash;pass only the name and description to the router LLM, not the full skill content.
+- **Inject at the system level**&mdash;always place skill content in the system prompt, not a user or assistant message.
+- **Use helper scripts**&mdash;run scripts directly when they exist rather than generating equivalent code from scratch.
+- **Sandbox code execution**&mdash;always sandbox LLM-generated code in production environments.
+
 
 ## The core pattern (framework-agnostic)
 
