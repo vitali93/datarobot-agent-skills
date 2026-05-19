@@ -4,44 +4,15 @@ Validate CODEOWNERS rules for the skills/ directory:
   (that team owns repo scaffolding only, not individual skills)
 """
 
-import fnmatch
 from pathlib import Path
 
 import pytest
+from codeowners import CodeOwners
 
 REPO_ROOT = Path(__file__).parent.parent.parent
 CODEOWNERS_FILE = REPO_ROOT / ".github" / "CODEOWNERS"
 SKILLS_DIR = REPO_ROOT / "skills"
 DEFAULT_OWNER = "@datarobot-oss/datarobot-agent-skills"
-
-
-def parse_codeowners() -> list[tuple[str, list[str]]]:
-    """Parse CODEOWNERS into a list of (pattern, owners) tuples, in file order."""
-    rules: list[tuple[str, list[str]]] = []
-    with open(CODEOWNERS_FILE, encoding="utf-8") as f:
-        for line in f:
-            line = line.strip()
-            if not line or line.startswith("#"):
-                continue
-            parts = line.split()
-            pattern, owners = parts[0], parts[1:]
-            if owners:
-                rules.append((pattern, owners))
-    return rules
-
-
-def effective_owners(path: str, rules: list[tuple[str, list[str]]]) -> list[str]:
-    """Return the owners for *path* by applying CODEOWNERS last-match-wins semantics."""
-    matched_owners: list[str] = []
-    for pattern, owners in rules:
-        # Strip leading slash for matching — CODEOWNERS anchors patterns with /
-        pat = pattern.lstrip("/")
-        # A pattern ending in / applies to everything under that directory
-        if pat.endswith("/"):
-            pat = pat + "**"
-        if fnmatch.fnmatch(path, pat) or fnmatch.fnmatch(path, pat + "/**"):
-            matched_owners = owners
-    return matched_owners
 
 
 def skill_dirs() -> list[Path]:
@@ -64,10 +35,11 @@ def test_codeowners_file_exists() -> None:
 
 def test_skill_not_owned_by_default_team(skill_dir: Path) -> None:
     """Each skill must have an explicit owner that is not the default repo team."""
-    rules = parse_codeowners()
-    # Use the skill dir path relative to repo root, with trailing slash
-    rel_path = str(skill_dir.relative_to(REPO_ROOT)) + "/"
-    owners = effective_owners(rel_path, rules)
+    text = CODEOWNERS_FILE.read_text(encoding="utf-8")
+    co = CodeOwners(text)
+    # Use a representative file inside the skill dir for ownership lookup
+    rel_path = str((skill_dir / "SKILL.md").relative_to(REPO_ROOT))
+    owners = [owner for (_kind, owner) in co.of(rel_path)]
     assert owners, (
         f"Skill '{skill_dir.name}' has no CODEOWNERS entry — add an explicit rule"
     )
