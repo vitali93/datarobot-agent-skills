@@ -291,9 +291,17 @@ preview = record.get_predictions_preview()
 anomalous_regions = preview.find_anomalous_regions()
 
 explanations = record.get_explanations_data_in_regions(regions=anomalous_regions)
-```
 
-Use `scripts/anomaly_assessment.py` for date-range retrieval and reuse of existing records.
+# Reuse an existing record when possible
+records = AnomalyAssessmentRecord.list(project_id=project_id, model_id=model_id)
+
+# Date-range explanations (two of start_date, end_date, or points_count required)
+latest = record.get_latest_explanations(
+    start_date="2024-01-01T00:00:00.000000Z",
+    end_date="2024-06-01T00:00:00.000000Z",
+    points_count=100,
+)
+```
 
 ---
 
@@ -365,10 +373,7 @@ Task: explain predictions
 
 - `references/shap_api_reference.md` - full parameter signatures for ShapMatrix, ShapImpact, ShapPreview, ShapDistributions
 - `references/xemp_pe_reference.md` - PredictionExplanations and PredictionExplanationsInitialization parameter reference
-- `scripts/compute_shap_matrix.py` - compute and export ShapMatrix to CSV/DataFrame
-- `scripts/compute_shap_impact.py` - compute ShapImpact, print ranked feature importance
-- `scripts/compute_xemp_explanations.py` - full XEMP PE workflow end-to-end
-- `scripts/anomaly_assessment.py` - anomaly assessment for time series models
+- `scripts/compute_shap_matrix.py` - compute and export ShapMatrix to CSV or DataFrame
 
 ## Resources
 
