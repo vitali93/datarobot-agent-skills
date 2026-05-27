@@ -29,6 +29,13 @@ REPO_ROOT = Path(__file__).parent.parent.parent
 COMPUTE_SHAP_MATRIX_PATH = (
     REPO_ROOT / "skills/datarobot-model-explainability/scripts/compute_shap_matrix.py"
 )
+SHAP_REFERENCE_PATH = (
+    REPO_ROOT / "skills/datarobot-model-explainability/references/shap_api_reference.md"
+)
+XEMP_REFERENCE_PATH = (
+    REPO_ROOT / "skills/datarobot-model-explainability/references/xemp_pe_reference.md"
+)
+EXPLAINABILITY_SKILL_PATH = REPO_ROOT / "skills/datarobot-model-explainability/SKILL.md"
 
 FAKE_SHAP_MATRIX_PAYLOAD = {
     "id": "insight-1",
@@ -168,6 +175,61 @@ class TestInsightsOtherClassesWithFakeData:
         result = ShapPreview.from_server_data(FAKE_SHAP_PREVIEW_PAYLOAD)
         assert result.previews_count == 1
         assert result.previews[0]["prediction_value"] == pytest.approx(0.72)
+
+
+class TestExplainabilityDocs:
+    def test_shap_reference_tracks_shap_distributions_min_sdk(self) -> None:
+        text = SHAP_REFERENCE_PATH.read_text(encoding="utf-8")
+        assert "datarobot>=3.6.0" in text
+        assert "ShapDistributions" in text
+        assert "datarobot>=3.4.0" in text
+
+    @pytest.mark.parametrize("path", [SHAP_REFERENCE_PATH, EXPLAINABILITY_SKILL_PATH])
+    def test_docs_do_not_claim_blenders_are_unsupported(self, path: Path) -> None:
+        text = path.read_text(encoding="utf-8")
+        assert "Not available for blenders" not in text
+        assert "Blender or >1000-feature model" not in text
+
+    def test_shap_reference_qualifies_feature_limit_to_anomaly_models(self) -> None:
+        text = SHAP_REFERENCE_PATH.read_text(encoding="utf-8")
+        assert (
+            "The >1000-feature limitation applies to anomaly-detection models only"
+            in text
+        )
+
+    @pytest.mark.parametrize("path", [SHAP_REFERENCE_PATH, EXPLAINABILITY_SKILL_PATH])
+    def test_logit_link_guidance_uses_inverse_logit(self, path: Path) -> None:
+        text = path.read_text(encoding="utf-8")
+        assert "exp(shap)" not in text
+        assert "expit" in text
+        assert "individual SHAP values" in text
+
+    @pytest.mark.parametrize("path", [SHAP_REFERENCE_PATH, EXPLAINABILITY_SKILL_PATH])
+    def test_shap_impact_source_guidance_does_not_claim_training_only(
+        self, path: Path
+    ) -> None:
+        text = path.read_text(encoding="utf-8")
+        assert "only `'training'`" not in text
+        assert "training partition only" not in text
+
+    def test_xemp_reference_does_not_call_strength_shap(self) -> None:
+        text = XEMP_REFERENCE_PATH.read_text(encoding="utf-8")
+        assert "XEMP/SHAP contribution" not in text
+        assert "XEMP contribution" in text
+
+    def test_xemp_reference_documents_global_top_50_limit(self) -> None:
+        text = XEMP_REFERENCE_PATH.read_text(encoding="utf-8")
+        assert "capped at 100" not in text
+        assert "global top 50 features" in text
+        assert "at most 50 can be returned" in text
+
+    def test_xemp_reference_does_not_prefer_xemp_for_supported_shap_cases(
+        self,
+    ) -> None:
+        text = XEMP_REFERENCE_PATH.read_text(encoding="utf-8")
+        assert "| Blender models | XEMP PE" not in text
+        assert "| >1000 feature models | XEMP PE" not in text
+        assert "Anomaly-detection models with >1000 features" in text
 
 
 class TestModelDiagnosticsApiSignatures:
