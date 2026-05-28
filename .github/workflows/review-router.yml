@@ -33,3 +33,4 @@ jobs:
         uses: datarobot-oss/review-router@v1
         with:
           github-token: ${{ steps.app-token.outputs.token }}
+          slack-token: ${{ secrets.SLACK_BOT_TOKEN }}
