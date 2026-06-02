@@ -468,4 +468,3 @@ dr auth login
 ```
 
 This will guide the user through the authentication process interactively.
-=======

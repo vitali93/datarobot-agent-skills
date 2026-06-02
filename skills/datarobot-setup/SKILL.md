@@ -188,16 +188,12 @@ dr plugin install assist
 1. **CLI and plugins**:
    ```bash
    dr --version
-   dr plugin list
-   dr assist --help
+   dr plugin list 2>/dev/null | grep -i assist
    ```
 
-2. **Python SDK** (inside the activated venv):
-   ```python
-   import datarobot as dr
-   dr.Client()
-   for p in dr.Project.list()[:3]:
-       print(p.project_name)
+2. **Python SDK**:
+   ```bash
+   source .venv/bin/activate && timeout 60 python -c "import datarobot as dr; dr.Client(); [print(p.project_name) for p in dr.Project.list(limit=3)]" < /dev/null
    ```
 
 ## Step 9: Print Summary
